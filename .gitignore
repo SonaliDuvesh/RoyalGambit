@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.local
+.DS_Store
+*.log
+.gradle
+android/.gradle
+android/app/build
+*.apk
+*.aab
+*.keystore
+Screenshot from *.png
+

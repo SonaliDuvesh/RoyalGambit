@@ -1,0 +1,81 @@
+/* Liquid Glass JS Styles adapted from dashersw/liquid-glass-js */
+
+.glass-container {
+  position: relative;
+  box-sizing: border-box;
+  background: transparent !important;
+}
+
+.glass-container > canvas.glass-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+  display: block;
+}
+
+.glass-container-circle {
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.glass-container-pill {
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+/* Ensure child elements sit gracefully above the WebGL glass canvas */
+.glass-container > *:not(canvas.glass-canvas) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Glass Button Styles */
+.glass-button {
+  position: relative;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  pointer-events: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: transparent !important;
+  border: 1px solid rgba(229, 169, 149, 0.35);
+  transition: border-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.glass-button:hover {
+  border-color: rgba(247, 178, 201, 0.7);
+  box-shadow: 0 0 16px rgba(229, 169, 149, 0.3);
+}
+
+.glass-button-circle {
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.glass-button-text {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  font-weight: 600;
+  color: var(--text-main, #fff);
+  white-space: nowrap;
+}
+
+/* Graceful Fallback if WebGL is unavailable */
+.glass-fallback {
+  background: rgba(32, 14, 28, 0.55) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(229, 169, 149, 0.3);
+}
+

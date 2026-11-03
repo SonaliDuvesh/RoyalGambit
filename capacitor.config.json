@@ -1,0 +1,19 @@
+{
+  "appId": "com.cherryblossom.chess",
+  "appName": "RoyalGambit",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "*.ngrok-free.dev",
+      "*.supabase.co"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  }
+}
+

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RoyalGambit</string>
+    <string name="title_activity_main">RoyalGambit</string>
+    <string name="package_name">com.cherryblossom.chess</string>
+    <string name="custom_url_scheme">com.cherryblossom.chess</string>
+</resources>
