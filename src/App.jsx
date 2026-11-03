@@ -357,8 +357,12 @@ export default function App() {
 
       socket.on('player_joined', ({ roomState }) => {
         setActiveRoom(roomState);
-        setWhitePlayer({ name: roomState.players?.white?.name || 'White' });
-        setBlackPlayer({ name: roomState.players?.black?.name || 'Black' });
+        if (roomState.players?.white?.name && roomState.players.white.name !== 'White') {
+          setWhitePlayer(prev => ({ ...prev, name: roomState.players.white.name }));
+        }
+        if (roomState.players?.black?.name && roomState.players.black.name !== 'Black') {
+          setBlackPlayer(prev => ({ ...prev, name: roomState.players.black.name }));
+        }
         if (roomState.status === 'playing') {
           setIsGameActive(true);
           setCurrentScreen('game');
@@ -371,8 +375,12 @@ export default function App() {
         setActiveRoom(roomState);
         setMyColor(playerColor);
         setIsFlipped(playerColor === 'b');
-        setWhitePlayer({ name: roomState.players?.white?.name || 'White' });
-        setBlackPlayer({ name: roomState.players?.black?.name || 'Black' });
+        if (roomState.players?.white?.name && roomState.players.white.name !== 'White') {
+          setWhitePlayer(prev => ({ ...prev, name: roomState.players.white.name }));
+        }
+        if (roomState.players?.black?.name && roomState.players.black.name !== 'Black') {
+          setBlackPlayer(prev => ({ ...prev, name: roomState.players.black.name }));
+        }
         if (roomState.status === 'playing') {
           setIsGameActive(true);
           setCurrentScreen('game');
@@ -420,6 +428,12 @@ export default function App() {
         if (gameOver) {
           setIsGameOver(true);
           setIsGameActive(false);
+          if (gameOver.whitePlayerName && gameOver.whitePlayerName !== 'White') {
+            setWhitePlayer(prev => ({ ...prev, name: gameOver.whitePlayerName }));
+          }
+          if (gameOver.blackPlayerName && gameOver.blackPlayerName !== 'Black') {
+            setBlackPlayer(prev => ({ ...prev, name: gameOver.blackPlayerName }));
+          }
           setGameOverInfo(gameOver);
           sounds.playGameOver();
           awardPointsOnGameOver(gameOver.winner, gameOver.reason);
@@ -466,9 +480,15 @@ export default function App() {
         alert('Opponent declined the draw offer.');
       });
 
-      socket.on('game_over', ({ winner, reason, whiteTime: wt, blackTime: bt }) => {
+      socket.on('game_over', ({ winner, reason, whiteTime: wt, blackTime: bt, whitePlayerName, blackPlayerName }) => {
         setIsGameOver(true);
         setIsGameActive(false);
+        if (whitePlayerName && whitePlayerName !== 'White') {
+          setWhitePlayer(prev => ({ ...prev, name: whitePlayerName }));
+        }
+        if (blackPlayerName && blackPlayerName !== 'Black') {
+          setBlackPlayer(prev => ({ ...prev, name: blackPlayerName }));
+        }
         setGameOverInfo({ winner, reason });
         if (wt !== undefined) setWhiteTime(wt);
         if (bt !== undefined) setBlackTime(bt);
@@ -566,9 +586,10 @@ export default function App() {
     setIsGameActive(false);
     const winner = timedOutColor === 'w' ? 'black' : 'white';
     const loserName = timedOutColor === 'w' ? (whitePlayer?.name || 'White') : (blackPlayer?.name || 'Black');
+    const winnerName = timedOutColor === 'w' ? (blackPlayer?.name || 'Black') : (whitePlayer?.name || 'White');
     setGameOverInfo({
       winner,
-      reason: `${loserName} ran out of time.`
+      reason: `${loserName} ran out of time — ${winnerName} won!`
     });
     sounds.playGameOver();
   };
@@ -581,13 +602,21 @@ export default function App() {
 
     const channel = subscribeToRoom(room.id, (event, payload) => {
       if (event === 'chess_move') {
-        const { move, fen, whiteTime: wt, blackTime: bt, isGameOver: over, winner, endReason } = payload;
+        const { move, fen, whiteTime: wt, blackTime: bt, isGameOver: over, winner, endReason, senderColor, senderName } = payload;
         const newGame = new Chess(fen);
         setGame(newGame);
         setBoard(newGame.board());
         setLastMove({ from: move.from, to: move.to });
         if (wt !== undefined) setWhiteTime(wt);
         if (bt !== undefined) setBlackTime(bt);
+
+        if (senderColor && senderName) {
+          if (senderColor === 'w' && senderName !== 'White') {
+            setWhitePlayer(prev => ({ ...prev, name: senderName }));
+          } else if (senderColor === 'b' && senderName !== 'Black') {
+            setBlackPlayer(prev => ({ ...prev, name: senderName }));
+          }
+        }
 
         setMoveHistory((prev) => {
           if (prev.length > 0) {
@@ -623,6 +652,13 @@ export default function App() {
           sounds.playGameOver();
           awardPointsOnGameOver(winner, endReason);
         }
+      } else if (event === 'player_presence') {
+        const { color, username, avatar } = payload;
+        if (color === 'w' && username && username !== 'White') {
+          setWhitePlayer(prev => ({ ...prev, name: username, avatar: avatar || prev.avatar }));
+        } else if (color === 'b' && username && username !== 'Black') {
+          setBlackPlayer(prev => ({ ...prev, name: username, avatar: avatar || prev.avatar }));
+        }
       } else if (event === 'chat_message') {
         setChatMessages(prev => {
           if (prev.some(m => m.id === payload.id)) return prev;
@@ -652,14 +688,15 @@ export default function App() {
       } else if (event === 'resign') {
         const winner = payload.resigningColor === 'w' ? 'black' : 'white';
         const resignerName = payload.resigningColor === 'w' ? (whitePlayer?.name || 'White') : (blackPlayer?.name || 'Black');
+        const winnerName = payload.resigningColor === 'w' ? (blackPlayer?.name || 'Black') : (whitePlayer?.name || 'White');
         setIsGameOver(true);
         setIsGameActive(false);
         setGameOverInfo({
           winner,
-          reason: `${resignerName} resigned.`
+          reason: `${resignerName} resigned — ${winnerName} won!`
         });
         sounds.playGameOver();
-        awardPointsOnGameOver(winner, `${resignerName} resigned.`);
+        awardPointsOnGameOver(winner, `${resignerName} resigned — ${winnerName} won!`);
       } else if (event === 'rematch_request') {
         setIncomingRematchRequest(true);
         sounds.playNotify();
@@ -667,6 +704,20 @@ export default function App() {
         resetBoardAndStartGame(payload.newWhiteId, payload.newBlackId);
       } else if (event === 'room_updated') {
         // Opponent connected or status changed
+        const targetCode = activeRoomRef.current?.room_code || room.room_code || room.id;
+        if (targetCode) {
+          fetchRoomByCode(targetCode).then((refreshed) => {
+            if (refreshed) {
+              setActiveRoom(refreshed);
+              if (refreshed.white_player?.username) {
+                setWhitePlayer(prev => ({ ...prev, name: refreshed.white_player.username, avatar: refreshed.white_player.avatar || prev.avatar }));
+              }
+              if (refreshed.black_player?.username) {
+                setBlackPlayer(prev => ({ ...prev, name: refreshed.black_player.username, avatar: refreshed.black_player.avatar || prev.avatar }));
+              }
+            }
+          }).catch(console.warn);
+        }
         if (payload.status === 'playing') {
           setIsGameActive(true);
           setCurrentScreen('game');
@@ -676,6 +727,25 @@ export default function App() {
     });
 
     realtimeChannelRef.current = channel;
+
+    // Proactively broadcast presence to ensure peer knows our username immediately
+    setTimeout(() => {
+      try {
+        const user = currentUserRef.current || getOrCreateGuestUser();
+        const myName = user?.username;
+        if (myName && channel?.send) {
+          channel.send({
+            type: 'broadcast',
+            event: 'player_presence',
+            payload: {
+              color: myColorRef.current,
+              username: myName,
+              avatar: user?.avatar || 'king'
+            }
+          });
+        }
+      } catch (e) {}
+    }, 350);
   };
 
   // Reset board
@@ -709,7 +779,8 @@ export default function App() {
 
   // Create room
   const handleCreateRoom = async ({ timeControlMinutes: tc, preferredColor }) => {
-    const pName = currentUser?.username || 'Player 1';
+    const user = currentUser || getOrCreateGuestUser();
+    const pName = user?.username || 'Player 1';
     if (socketRef.current) {
       socketRef.current.emit('create_room', {
         playerName: pName,
@@ -720,12 +791,12 @@ export default function App() {
 
     try {
       const room = await createGameRoom({
-        hostUser: currentUser || { id: 'guest', username: pName },
+        hostUser: user,
         timeControlMinutes: tc,
         preferredColor
       });
 
-      const hostIsWhite = room.white_player_id === currentUser?.id;
+      const hostIsWhite = room.white_player_id === user?.id;
       const assignedColor = hostIsWhite ? 'w' : 'b';
 
       setActiveRoom(room);
@@ -737,8 +808,8 @@ export default function App() {
       setWhiteTime(ms);
       setBlackTime(ms);
 
-      setWhitePlayer({ name: hostIsWhite ? pName : 'Waiting...', avatar: currentUser?.avatar || 'king' });
-      setBlackPlayer({ name: !hostIsWhite ? pName : 'Waiting...', avatar: currentUser?.avatar || 'queen' });
+      setWhitePlayer({ name: hostIsWhite ? pName : 'Waiting...', avatar: user?.avatar || 'king' });
+      setBlackPlayer({ name: !hostIsWhite ? pName : 'Waiting...', avatar: user?.avatar || 'queen' });
 
       setCurrentScreen('waiting');
       connectRoomRealtime(room);
@@ -780,7 +851,8 @@ export default function App() {
   // Join by room code
   const handleJoinByCode = async (code) => {
     if (!code) return;
-    const pName = currentUser?.username || 'Player 2';
+    const user = currentUser || getOrCreateGuestUser();
+    const pName = user?.username || 'Player 2';
     if (socketRef.current) {
       socketRef.current.emit('join_room', {
         roomId: code,
@@ -791,23 +863,26 @@ export default function App() {
     try {
       const room = await fetchRoomByCode(code);
       if (room) {
-        const updated = await joinGameRoom(room, currentUser || { id: 'guest', username: pName });
+        const updated = await joinGameRoom(room, user);
         setActiveRoom(updated);
         setGameMode('online');
 
-        const isWhite = updated.white_player_id === currentUser?.id;
+        const isWhite = (updated.white_player_id === user?.id) || (room.white_player_id === user?.id);
         const assignedColor = isWhite ? 'w' : 'b';
         setMyColor(assignedColor);
         setIsFlipped(assignedColor === 'b');
 
-        setWhitePlayer({
-          name: updated.white_player?.username || 'White',
-          avatar: updated.white_player?.avatar || 'king'
-        });
-        setBlackPlayer({
-          name: updated.black_player?.username || 'Black',
-          avatar: updated.black_player?.avatar || 'queen'
-        });
+        const whiteUsername = isWhite ? pName : (room.white_player?.username || updated.white_player?.username || 'White');
+        const blackUsername = !isWhite ? pName : (room.black_player?.username || updated.black_player?.username || 'Black');
+
+        setWhitePlayer(prev => ({
+          name: whiteUsername !== 'White' ? whiteUsername : (prev?.name && prev.name !== 'White' ? prev.name : 'White'),
+          avatar: isWhite ? (user?.avatar || 'king') : (room.white_player?.avatar || 'king')
+        }));
+        setBlackPlayer(prev => ({
+          name: blackUsername !== 'Black' ? blackUsername : (prev?.name && prev.name !== 'Black' ? prev.name : 'Black'),
+          avatar: !isWhite ? (user?.avatar || 'queen') : (room.black_player?.avatar || 'queen')
+        }));
 
         const moves = await fetchRoomMoves(room.id);
         if (moves.length > 0) {
@@ -941,7 +1016,8 @@ export default function App() {
         reason = endDetails.reason;
         if (winner && winner !== 'draw' && reason && reason.includes('Checkmate!')) {
           const winnerName = winner === 'white' ? (whitePlayer?.name || 'White') : (blackPlayer?.name || 'Black');
-          reason = `Checkmate! ${winnerName} wins!`;
+          const loserName = winner === 'white' ? (blackPlayer?.name || 'Black') : (whitePlayer?.name || 'White');
+          reason = `Checkmate! ${winnerName} defeated ${loserName}!`;
         }
 
         setGameOverInfo({ winner, reason });
@@ -970,7 +1046,9 @@ export default function App() {
           isGameOver: gameOverFlag,
           winner,
           endReason: reason,
-          channel: realtimeChannelRef.current
+          channel: realtimeChannelRef.current,
+          senderColor: myColor,
+          senderName: currentUser?.username || (myColor === 'w' ? whitePlayer?.name : blackPlayer?.name)
         });
       }
     } catch (err) {
@@ -1237,7 +1315,8 @@ export default function App() {
   const handleResign = () => {
     if (isGameOver) return;
     const resignerColor = gameMode === 'online' ? myColor : game.turn();
-    const resignerName = resignerColor === 'w' ? 'White' : 'Black';
+    const resignerName = resignerColor === 'w' ? (whitePlayer?.name || 'White') : (blackPlayer?.name || 'Black');
+    const winnerName = resignerColor === 'w' ? (blackPlayer?.name || 'Black') : (whitePlayer?.name || 'White');
 
     setConfirmDialog({
       title: 'Resign Match',
@@ -1249,7 +1328,7 @@ export default function App() {
         const winner = resignerColor === 'w' ? 'black' : 'white';
         setIsGameOver(true);
         setIsGameActive(false);
-        setGameOverInfo({ winner, reason: `${resignerName} resigned.` });
+        setGameOverInfo({ winner, reason: `${resignerName} resigned — ${winnerName} won!` });
         sounds.playGameOver();
 
         if (socketRef.current) {

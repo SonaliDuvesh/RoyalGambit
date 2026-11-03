@@ -45,39 +45,67 @@ export default function GameOverModal({
 
   const isWhiteWin = winner === 'white';
   const isBlackWin = winner === 'black';
+  const isDraw = winner === 'draw';
 
-  // Resolve genuine player usernames (falling back gracefully to 'White' / 'Black' if not set)
-  const whiteName = (whitePlayerName && typeof whitePlayerName === 'string' && whitePlayerName.trim() && whitePlayerName.trim().toLowerCase() !== 'white')
-    ? whitePlayerName.trim()
-    : null;
-  const blackName = (blackPlayerName && typeof blackPlayerName === 'string' && blackPlayerName.trim() && blackPlayerName.trim().toLowerCase() !== 'black')
-    ? blackPlayerName.trim()
-    : null;
+  // Resolve genuine player usernames cleanly with sensible fallbacks
+  const cleanName = (val, fallback) => {
+    if (!val || typeof val !== 'string') return fallback;
+    const trimmed = val.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'waiting...' || trimmed.toLowerCase() === fallback.toLowerCase()) {
+      return fallback;
+    }
+    return trimmed;
+  };
 
-  const winnerDisplayName = isWhiteWin ? (whiteName || 'White') : isBlackWin ? (blackName || 'Black') : null;
-  const loserDisplayName = isWhiteWin ? (blackName || 'Black') : isBlackWin ? (whiteName || 'White') : null;
+  const whiteDisplayName = cleanName(whitePlayerName, 'White');
+  const blackDisplayName = cleanName(blackPlayerName, 'Black');
 
-  // Title: reflects username of the winner
-  const title = winner === 'draw'
+  const winnerDisplayName = isWhiteWin ? whiteDisplayName : isBlackWin ? blackDisplayName : null;
+  const loserDisplayName = isWhiteWin ? blackDisplayName : isBlackWin ? whiteDisplayName : null;
+
+  // Title: prominently reflects the winning player
+  const title = isDraw
     ? 'Game Drawn'
     : `${winnerDisplayName} Victory!`;
 
-  // Subtitle / Reason: dynamically replaces generic color terms with actual usernames
-  let displayReason = reason ? String(reason).trim() : '';
-  if (displayReason) {
-    if (whiteName) {
-      displayReason = displayReason.replace(/\bWhite\b/g, whiteName);
-    }
-    if (blackName) {
-      displayReason = displayReason.replace(/\bBlack\b/g, blackName);
-    }
-    if (!displayReason.endsWith('.') && !displayReason.endsWith('!')) {
-      displayReason += '.';
+  // Subtitle / Reason: explicitly state who won and who lost using real usernames
+  let displayReason = '';
+  const rawReason = (reason ? String(reason).trim() : '').toLowerCase();
+
+  if (isDraw) {
+    if (rawReason.includes('stalemate')) {
+      displayReason = `Stalemate — ${whiteDisplayName} and ${blackDisplayName} drew the match.`;
+    } else if (rawReason.includes('threefold')) {
+      displayReason = `Threefold repetition — draw between ${whiteDisplayName} and ${blackDisplayName}.`;
+    } else if (rawReason.includes('insufficient')) {
+      displayReason = `Insufficient material — draw between ${whiteDisplayName} and ${blackDisplayName}.`;
+    } else if (rawReason.includes('agreement') || rawReason.includes('mutual')) {
+      displayReason = `Draw by mutual agreement between ${whiteDisplayName} and ${blackDisplayName}.`;
+    } else if (rawReason.includes('50') || rawReason.includes('fifty')) {
+      displayReason = `50-move rule — draw between ${whiteDisplayName} and ${blackDisplayName}.`;
+    } else {
+      displayReason = `The match between ${whiteDisplayName} and ${blackDisplayName} ended in a draw.`;
     }
   } else {
-    displayReason = winner === 'draw'
-      ? 'The game ended in a draw.'
-      : `${winnerDisplayName} won the match.`;
+    // Winner decided: clearly state who won and who lost
+    if (rawReason.includes('time') || rawReason.includes('timeout')) {
+      displayReason = `${loserDisplayName} ran out of time — ${winnerDisplayName} won!`;
+    } else if (rawReason.includes('resign')) {
+      displayReason = `${loserDisplayName} resigned — ${winnerDisplayName} won!`;
+    } else if (rawReason.includes('checkmate')) {
+      displayReason = `Checkmate! ${winnerDisplayName} defeated ${loserDisplayName}!`;
+    } else if (rawReason.includes('disconnect') || rawReason.includes('abandon')) {
+      displayReason = `${loserDisplayName} disconnected — ${winnerDisplayName} won!`;
+    } else if (reason) {
+      let r = String(reason).trim();
+      r = r.replace(/\bWhite\b/g, whiteDisplayName).replace(/\bBlack\b/g, blackDisplayName);
+      displayReason = r;
+      if (!displayReason.endsWith('.') && !displayReason.endsWith('!')) {
+        displayReason += '.';
+      }
+    } else {
+      displayReason = `${winnerDisplayName} defeated ${loserDisplayName}.`;
+    }
   }
 
   return (
@@ -120,7 +148,99 @@ export default function GameOverModal({
           {title}
         </h2>
 
-        <p className="modal-subtitle">
+        {/* Match Result Breakdown explicitly reflecting who won and who lost */}
+        <div className="game-over-players-summary" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          gap: '10px',
+          margin: '0 auto 16px',
+          padding: '10px 16px',
+          borderRadius: '12px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(229, 169, 149, 0.25)',
+          maxWidth: '380px'
+        }}>
+          {!isDraw ? (
+            <>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '1.05rem' }}>👑</span>
+                <span style={{ color: 'var(--rose-gold-light)', fontWeight: 700, fontSize: '0.96rem' }}>
+                  {winnerDisplayName}
+                </span>
+                <span style={{
+                  fontSize: '0.7rem',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  background: 'rgba(74, 222, 128, 0.2)',
+                  color: '#4ade80',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase'
+                }}>
+                  Won
+                </span>
+              </div>
+              <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem', fontWeight: 600 }}>vs</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.96rem' }}>
+                  {loserDisplayName}
+                </span>
+                <span style={{
+                  fontSize: '0.7rem',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  color: '#f87171',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase'
+                }}>
+                  Lost
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: 'var(--rose-gold-light)', fontWeight: 600, fontSize: '0.96rem' }}>
+                  {whiteDisplayName}
+                </span>
+                <span style={{
+                  fontSize: '0.7rem',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'var(--text-muted)',
+                  fontWeight: 600,
+                  textTransform: 'uppercase'
+                }}>
+                  Draw
+                </span>
+              </div>
+              <span style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>vs</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: 'var(--rose-gold-light)', fontWeight: 600, fontSize: '0.96rem' }}>
+                  {blackDisplayName}
+                </span>
+                <span style={{
+                  fontSize: '0.7rem',
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  color: 'var(--text-muted)',
+                  fontWeight: 600,
+                  textTransform: 'uppercase'
+                }}>
+                  Draw
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <p className="modal-subtitle" style={{ marginBottom: '22px' }}>
           {displayReason}
         </p>
 

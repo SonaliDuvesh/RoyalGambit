@@ -190,7 +190,16 @@ export async function joinGameRoom(room, user) {
     throw error;
   }
 
-  return updatedRoom;
+  return {
+    ...room,
+    ...updatedRoom,
+    white_player: updateData.white_player_id === user.id
+      ? { id: user.id, username: user.username, avatar: user.avatar }
+      : room.white_player,
+    black_player: updateData.black_player_id === user.id
+      ? { id: user.id, username: user.username, avatar: user.avatar }
+      : room.black_player
+  };
 }
 
 export async function submitGameMove({
@@ -205,7 +214,9 @@ export async function submitGameMove({
   isGameOver = false,
   winner = null,
   endReason = null,
-  channel = null
+  channel = null,
+  senderColor = null,
+  senderName = null
 }) {
   if (!isSupabaseConfigured()) return;
 
@@ -250,7 +261,9 @@ export async function submitGameMove({
         blackTime,
         isGameOver,
         winner,
-        endReason
+        endReason,
+        senderColor,
+        senderName
       }
     });
   }
@@ -288,6 +301,9 @@ export function subscribeToRoom(roomId, onEvent) {
     })
     .on('broadcast', { event: 'room_restart' }, ({ payload }) => {
       onEvent('room_restart', payload);
+    })
+    .on('broadcast', { event: 'player_presence' }, ({ payload }) => {
+      onEvent('player_presence', payload);
     })
     .on('postgres_changes', {
       event: 'UPDATE',

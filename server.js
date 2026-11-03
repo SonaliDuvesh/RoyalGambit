@@ -101,9 +101,12 @@ function updateRoomTimer(room) {
         ptsAwarded = true;
       }
       const whiteName = room.players?.white?.name || 'White';
+      const blackName = room.players?.black?.name || 'Black';
       io.to(room.id).emit('game_over', {
         winner: 'black',
         reason: `${whiteName} ran out of time`,
+        whitePlayerName: whiteName,
+        blackPlayerName: blackName,
         whiteTime: 0,
         blackTime: room.blackTime,
         points: { white: 0, black: 3 },
@@ -121,10 +124,13 @@ function updateRoomTimer(room) {
         room.pointsAwarded = true;
         ptsAwarded = true;
       }
+      const whiteName = room.players?.white?.name || 'White';
       const blackName = room.players?.black?.name || 'Black';
       io.to(room.id).emit('game_over', {
         winner: 'white',
         reason: `${blackName} ran out of time`,
+        whitePlayerName: whiteName,
+        blackPlayerName: blackName,
         whiteTime: room.whiteTime,
         blackTime: 0,
         points: { white: 3, black: 0 },
@@ -308,14 +314,17 @@ io.on('connection', (socket) => {
         let points = { white: 0, black: 0 };
         if (room.chess.isCheckmate()) {
           winner = move.color === 'w' ? 'white' : 'black';
-          const winnerName = winner === 'white' 
-            ? (room.players?.white?.name || 'White') 
-            : (room.players?.black?.name || 'Black');
+          const whiteName = room.players?.white?.name || 'White';
+          const blackName = room.players?.black?.name || 'Black';
+          const winnerName = winner === 'white' ? whiteName : blackName;
+          const loserName = winner === 'white' ? blackName : whiteName;
           endReason = 'checkmate';
           points = winner === 'white' ? { white: 3, black: 0 } : { white: 0, black: 3 };
           gameOverInfo = {
             winner,
-            reason: `Checkmate! ${winnerName} wins!`
+            reason: `Checkmate! ${winnerName} defeated ${loserName}!`,
+            whitePlayerName: whiteName,
+            blackPlayerName: blackName
           };
         } else if (room.chess.isDraw()) {
           winner = 'draw';
@@ -417,13 +426,16 @@ io.on('connection', (socket) => {
       ptsAwarded = true;
     }
 
-    const resignerName = socket.playerColor === 'w'
-      ? (room.players?.white?.name || 'White')
-      : (room.players?.black?.name || 'Black');
+    const whiteName = room.players?.white?.name || 'White';
+    const blackName = room.players?.black?.name || 'Black';
+    const resignerName = socket.playerColor === 'w' ? whiteName : blackName;
+    const winnerName = socket.playerColor === 'w' ? blackName : whiteName;
 
     io.to(roomId).emit('game_over', {
       winner,
       reason: `${resignerName} resigned`,
+      whitePlayerName: whiteName,
+      blackPlayerName: blackName,
       whiteTime: room.whiteTime,
       blackTime: room.blackTime,
       points: winner === 'white' ? { white: 3, black: 0 } : { white: 0, black: 3 },
